@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>public</access>
+        <active>true</active>
+        <api_name>x_msgfi_codesearch.MS_CodeSearch</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description>Helper class for the custome code search application</description>
+        <name>MS_CodeSearch</name>
+        <script><![CDATA[var MS_CodeSearch = Class.create();
+MS_CodeSearch.prototype = {
+	
+	REGEX_SYSID: /^[0-9a-f]{32}$/,
+	
+    initialize: function() {
+		this.oCodeSearch = new sn_codesearch.CodeSearch();
+		
+		var grSearchGroup = new GlideRecord('sn_codesearch_search_group');
+		
+		var bExists = grSearchGroup.get('name', 'x_msgfi_codesearch.MS CodeSearch');
+		
+		if (!bExists){
+			gs.error('CodeSearch: Default Search Group doesn´t exist');
+		}
+		this.grSearchGroup = grSearchGroup;
+    },
+	
+	addSearchTable: function (sTable, sFields){
+		var oArrayUtil = new global.ArrayUtil();
+		var sSysID = '';
+		var sSearchGroup = this.grSearchGroup.getValue('sys_id');
+		
+		var grTable = new GlideRecord('sn_codesearch_table');
+		grTable.addQuery('table', sTable);
+		grTable.addQuery('search_group', sSearchGroup);
+		grTable.query();
+		
+		var bExists = grTable.next();
+		
+		if (!bExists){
+			grTable.initialize();
+			grTable.search_group = sSearchGroup;
+			grTable.table = sTable;
+			grTable.search_fields = sFields;
+			
+			sSysID = grTable.insert();
+		} else {
+			var aTmpFields = grTable.getValue('search_fields').split(',');
+			var aFields = sFields.split(',');
+			
+			aFields = oArrayUtil.union(aTmpFields, aFields);
+			aFields.sort();
+			
+			grTable.search_fields = aFields.join(',');
+			
+			sSysID = grTable.update();
+		}
+		
+		return sSysID;
+	},
+	
+	addAllTables: function(){
+		var grDict = this.getDictionary();
+		
+		while (grDict.next()){
+			sField = grDict.getValue('element');
+			sTable = grDict.getValue('name');
+			
+			this.addSearchTable(sTable, sField);
+		}
+	},
+	
+	getDictionary: function(){
+		
+		var grDict = new GlideRecord('sys_dictionary');
+							grDict.addEncodedQuery('internal_type.nameINscript,condition,condition_string,script_plain,XML,script_server^ORelement=reference_qual^ORelement=calculation^nameNOT LIKEvar__m_^NQelementSTARTSWITHscript^ORelementLIKE_script^internal_type.nameSTARTSWITHstring^nameNOT LIKEvar__m_^NQname=sys_variable_value^element=value');
+      grDict.query();
+		
+      return grDict;
+	},
+	
+	/* TODO: Comment and error handling */
+	searchForSysID: function(sSysID){
+		var bFound = false;
+	
+		var oResult = {
+			className: '',
+			classLabel: '',
+			recordName: '',
+			recordURL: '',
+			sys_updated_on: '',
+			sys_updated_by: '',
+			sys_id: ''
+		};
+		
+		if (!this.REGEX_SYSID.test(sSysID)){
+			gs.log('Not a sys id', this.source);
+			return oResult;
+		}
+
+		// Only search through base tables, e.g. search only through task and not incidents because they are in both tables.
+		var grTable = new GlideRecord('sys_db_object');
+		grTable.addEncodedQuery('super_class=NULL^name!=NULL');
+		grTable.addQUery('name', '!=', 'sys_audit');
+		grTable.orderBy('name');
+		grTable.query();
+		
+		while(grTable.next() && !bFound)
+		{
+			var sTableTemp = grTable.getValue('name');
+			
+			// Skip some SN tables
+			if(sTableTemp.startsWith('ts_')){
+				continue;
+			}
+			if(sTableTemp.startsWith('v_')){
+				continue;
+			}
+			if(sTableTemp.startsWith('pa_')){
+				continue;
+			}
+			
+			var grItem = new GlideRecord(sTableTemp);
+      
+			if(!grItem.isValid()){
+				continue;
+			}
+			
+			bFound = grItem.get(sTerm);
+			if(bFound)
+			{
+				oResult.className = grItem.getRecordClassName();
+				oResult.classLabel = grItem.getClassDisplayValue();
+				oResult.recordName = grItem.getDisplayValue();
+				oResult.recordURL = gs.getProperty('glide.servlet.uri') + oResult.className + '.do?sys_id=' + sSysID;
+				oResult.sys_updated_by = grItem.sys_updated_by.getDisplayValue();
+				oResult.sys_updated_on = grItem.sys_updated_on.getDisplayValue();
+				oResult.sys_id = sSysID;	
+			}
+		}
+		
+		return oResult;		
+	},
+	
+	searchForReference: function (sSysID){
+		
+		var oRecord = this.searchForSysID(sSysID);
+		
+		// https://www.servicenowguru.com/system-definition/find-references-specific-record/
+	},
+	
+    type: 'MS_CodeSearch'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>sebastian.reinmann</sys_created_by>
+        <sys_created_on>2018-04-13 15:32:07</sys_created_on>
+        <sys_id>bd3fe8c80fa55700c130d63be1050ebb</sys_id>
+        <sys_mod_count>11</sys_mod_count>
+        <sys_name>MS_CodeSearch</sys_name>
+        <sys_package display_value="MS CodeSearch" source="x_msgfi_codesearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="MS CodeSearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_scope>
+        <sys_update_name>sys_script_include_bd3fe8c80fa55700c130d63be1050ebb</sys_update_name>
+        <sys_updated_by>sebastian.reinmann</sys_updated_by>
+        <sys_updated_on>2018-10-22 14:23:11</sys_updated_on>
+    </sys_script_include>
+</record_update>

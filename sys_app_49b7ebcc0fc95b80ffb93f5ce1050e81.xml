@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_app">
+    <sys_app action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <can_edit_in_studio>false</can_edit_in_studio>
+        <enforce_license>log</enforce_license>
+        <js_level>helsinki_es5</js_level>
+        <licensable>true</licensable>
+        <license_category>none</license_category>
+        <license_model>none</license_model>
+        <logo/>
+        <menu display_value="Code Search">794009cad7320200b6bddb0c82520311</menu>
+        <name>MS CodeSearch</name>
+        <private>false</private>
+        <restrict_table_access>false</restrict_table_access>
+        <runtime_access_tracking>permissive</runtime_access_tracking>
+        <scope>x_msgfi_codesearch</scope>
+        <scoped_administration>false</scoped_administration>
+        <short_description>A user friendly CodeSearch Application which uses SN_CodeSearch Plugin</short_description>
+        <source>x_msgfi_codesearch</source>
+        <store_correlation_id>REPOAPP0000082960</store_correlation_id>
+        <store_url/>
+        <sys_class_name>sys_app</sys_class_name>
+        <sys_code/>
+        <sys_created_by>sebastian.reinmann</sys_created_by>
+        <sys_created_on>2018-03-20 08:20:08</sys_created_on>
+        <sys_id>49b7ebcc0fc95b80ffb93f5ce1050e81</sys_id>
+        <sys_mod_count>11</sys_mod_count>
+        <sys_updated_by>sebastian.reinmann</sys_updated_by>
+        <sys_updated_on>2018-10-22 14:23:52</sys_updated_on>
+        <template/>
+        <trackable>true</trackable>
+        <user_role display_value="admin" name="admin">2831a114c611228501d4ea6c309d626d</user_role>
+        <vendor/>
+        <vendor_prefix/>
+        <version>0.1</version>
+    </sys_app>
+</record_update>

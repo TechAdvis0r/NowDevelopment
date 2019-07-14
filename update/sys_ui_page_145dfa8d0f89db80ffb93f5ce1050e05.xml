@@ -1,0 +1,457 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_ui_page">
+    <sys_ui_page action="INSERT_OR_UPDATE">
+        <category>general</category>
+        <client_script><![CDATA[// https://stackoverflow.com/a/17606289
+String.prototype.replaceAll = function(search, replacement) {
+    var target = this;
+    return target.replace(new RegExp(search, 'g'), replacement);
+};
+
+var divHeaderTemplate, divBodyTemplate, divResultTemplate, divCodeTemplate, divCodePartTemplate;
+
+// split again and assign the array. This variable will now be available in the client script for further processing
+var aSearchableTables = "${jvar_table_list}".split(',');
+var nAllTables = aSearchableTables.length;
+var nFinishedTables = 0;
+
+// Copy templates to variables for better performance
+$j(document).ready(function(){
+	divHeaderTemplate = $j("#template > #header").html();
+	divBodyTemplate = $j("#template > #body").html();
+	divResultTemplate = $j("#template > #result").html();
+	divCodeTemplate = $j("#template > #code").html();
+	divCodePartTemplate = $j("#template > #codePart").html();
+	
+	var sSearchTerm = "$[sysparm_search]" || '';
+	console.log("Search " + sSearchTerm);
+	
+	if (sSearchTerm != ''){
+		$j("#sn_codesearch_term").val(sSearchTerm);
+		sn_codesearch_getResults();
+	}
+});
+
+function sn_codesearch_getResults() {
+	
+	updateProgress(0);
+	$j('.progress').show();
+	$j("#sn_codesearch_results").html('');
+	
+	var bAsync = true;
+	
+	var userToken = "$[gs.getSessionToken()]";
+	
+	var sSearchTerm = $j("#sn_codesearch_term").val().trim();
+	if (sSearchTerm != ''){
+		sURL = document.location.pathname + "?sysparm_search=" + sSearchTerm;
+		window.history.replaceState(null, null, sURL);
+	}
+	
+	var limit = $[gs.getProperty('sn_codesearch.search.results.max', 500)],
+	req = {
+		data : {
+			limit : limit,
+			current_app : "sn_codesearch",
+			//table : $j("#sn_codesearch_table").val(),
+			table: '',
+			term : sSearchTerm,
+			search_group: 'x_msgfi_codesearch.MS CodeSearch',
+			search_all_scopes : $j("#sn_codesearch_search_all_scopes").is(':checked')
+		},	
+		dataType : 'json',
+		headers : {"X-UserToken" : userToken}
+	};
+	
+	if(!req.data.term) {
+		alert("No search term provided.");
+		return false;
+	}
+
+	if(bAsync) {
+		// Loop over Array with searchable tables provided above and call API for each of them
+		for (var i = 0; i < aSearchableTables.length; i++) {
+			req.data.table = aSearchableTables[i];
+			ajaxStartRequest(req);	
+		}
+	} else {
+		// Async property flag not set, do a single call
+		ajaxStartRequest(req);
+	}
+
+	return false;
+}
+
+function ajaxStartRequest(req) {
+	var endpoint = '/api/sn_codesearch/code_search/search';
+	var nStart = Date.now();
+	
+	var jqxhr = $j.ajax(endpoint, req)
+	.done(function(data, textStatus, jqXHR) {
+		var nStop = Date.now();
+		var nDuration = precisionRound((nStop - nStart)/1000, 3);
+		
+		var result = data.result;
+		//are we dealing with just one table's results
+		if (req.data.table){
+			writeOutputForTable(result, nDuration);
+			updateProgress();
+		}
+		else {
+			for (var i=0; i<result.length; i++){
+				writeOutputForTable(result[i], nDuration);
+				updateProgress();
+			}
+		}
+	})
+	.fail(function(jqXHR, textStatus, errorThrown) {
+		console.log("Error - unable to complete search. Message is " + errorThrown);
+	});
+}
+
+function updateProgress(nValue){
+	var $progress = $j('.progress-bar');
+	
+	if (nValue == 0){
+		nFinishedTables = 0;
+	} else{
+		nFinishedTables++;
+	}
+	
+	//var nValue = parseInt($progress.attr('aria-valuenow'));
+	var nValue = Math.round (nFinishedTables * 100 / nAllTables);
+	
+	$progress.css('width', nValue+'%').attr('aria-valuenow', nValue).html(nValue+'%');
+	
+	if(nFinishedTables == nAllTables){
+		setTimeout(function(){
+			$j('.progress').hide();
+		}, 3000);
+	}
+}
+
+function toggleIcon(elem) {
+	jQueryElem = $j(elem);
+	if(jQueryElem.find('span.glyphicon-plus').length) {
+		jQueryElem.find('span.glyphicon-plus').removeClass("glyphicon-plus").addClass("glyphicon-minus");
+	} else {
+		jQueryElem.find('span.glyphicon-minus').removeClass("glyphicon-minus").addClass("glyphicon-plus");
+	}
+}
+
+function writeOutputForTable(data, nDuration) {
+	if(!data || !data.hits || data.hits.length == 0)
+		return;
+	
+	var searchTerm = $j("#sn_codesearch_term").val();
+	var divResultTable = $j("#sn_codesearch_results");
+	
+	var header = divHeaderTemplate;
+	header = header.replaceAll("§§recordType§§", data.recordType).replace("§§tableLabel§§", data.tableLabel).replace("§§duration§§", nDuration).replaceAll("§§hits§§", data.hits.length);
+	
+	var result_body = divBodyTemplate;
+	result_body = result_body.replaceAll("§§recordType§§", data.recordType);
+	
+	var result = "";
+	
+	$j.each(data.hits, function(idx, hit) {	
+		var dtUpdated = new Date(hit.modified);
+		
+		var sDate = formatDate(dtUpdated);
+		
+		var trimmedName = hit.name || '';
+		trimmedName = trimmedName.replace(/\s/g,'').replace(/[^a-z0-9\s]/gi, '');
+		
+		var result_desc = divResultTemplate;
+		result_desc = result_desc.replaceAll("§§trimmedName§§", trimmedName)
+			.replaceAll("§§name§§", hit.name)
+			.replaceAll("§§className§§", hit.className)
+			.replaceAll("§§sysId§§", hit.sysId)
+			.replaceAll("§§matches§§", hit.matches.length);
+
+		var text = "";
+				
+		$j.each(hit.matches, function(indx, match) {
+			var highlightLines = "";
+			$j.each(match.lineMatches, function(ix1, fieldMatch) {
+				if(fieldMatch.escaped.toLowerCase().indexOf(searchTerm.toLowerCase()) != -1) {
+					highlightLines = highlightLines + " " + fieldMatch.line;
+				}
+			});
+			highlightLines = highlightLines.trim().split(' ').join(',');
+			
+			var aCode = [[]];
+					
+			var currentLine = match.lineMatches[0].line;
+			
+			$j.each(match.lineMatches, function(ix2, fieldMatch) {
+				if(currentLine != fieldMatch.line){
+					currentLine = fieldMatch.line;
+					aCode.push([]);
+				}
+				aCode[aCode.length-1].push(fieldMatch);
+				currentLine++;
+			});
+				
+			var code = divCodeTemplate;
+			code = code.replaceAll("§§fieldLabel§§", match.fieldLabel).replaceAll("§§date§§", sDate);
+			
+			var inner_code = "";
+			
+			$j.each(aCode, function(ix2, aCodePart) {
+				var codePart = divCodePartTemplate;
+				codePart = codePart.replaceAll("§§line§§", aCodePart[0].line);
+				
+				var sCodeSnipped = "";
+				
+				$j.each(aCodePart, function(ix2, fieldMatch) {
+					if(fieldMatch.escaped.trim().length > 0) {
+						sCodeSnipped += fieldMatch.escaped + "\n";
+					}
+				});
+				
+				codePart = codePart.replaceAll("§§code§§", sCodeSnipped);
+				
+				inner_code += codePart;
+					
+			});
+			
+			code = code.replaceAll("§§codePart§§", inner_code);
+			text += code;
+		});
+		
+		result += result_desc.replaceAll("§§text§§", text);
+	});
+	
+	result_body = result_body.replaceAll("§§result§§", result);
+	header = header.replace("§§body§§", result_body);	
+	
+	divResultTable.addClass("panel-group");
+	$j(header).appendTo(divResultTable);
+	
+}
+
+function formatDate(dtDate){
+	var sDate = dtDate.getUTCFullYear() + "-" +
+			("0" + (dtDate.getUTCMonth()+1)).slice(-2) + "-" +
+			("0" + dtDate.getUTCDate()).slice(-2) + " " +
+			("0" + dtDate.getUTCHours()).slice(-2) + ":" +
+			("0" + dtDate.getUTCMinutes()).slice(-2) + ":" +
+			("0" + dtDate.getUTCSeconds()).slice(-2);
+	
+	return sDate;
+}
+
+function precisionRound(number, precision) {
+  var factor = Math.pow(10, precision);
+  return Math.round(number * factor) / factor;
+}]]></client_script>
+        <description>This UI Page implements the ServiceNow CodeSearch API and gives you an userfriedly option to search for code.&#13;
+If you want to search in other custome tables, you have to add a record to table sn_codesearch_table for the default Search Group</description>
+        <direct>false</direct>
+        <endpoint>x_msgfi_codesearch_MS_CodeSearch.do</endpoint>
+        <html><![CDATA[<?xml version="1.0" encoding="utf-8" ?>
+<!--
+	Implemented by Media Solutions (www.media-solutions.de/en)
+	If you have any questions, send us a mail: sn@media-solutions.de
+
+	You can add a search term directly in the url via param sysparm_search, e.g. x_msgfi_codesearch_MS_CodeSearch.do?sysparm_search=GlideRecord
+
+	Further steps:
+		- Refactor and optimize code
+		- Comment Code
+		- Implement Property Handling
+		- Implement Methods to add tables to sn_codesearch_table
+		- Implement SysID Search
+		- Implement Reference Search
+	
+-->
+<j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
+<j:set var="jvar_form_class" value="navbar-form navbar-left"/>
+
+	<g:requires name="styles/heisenberg/heisenberg_all.css" includes="true" />
+	<g:requires name="scripts/lib/jquery_includes.js" />
+	<g:requires name="scripts/heisenberg/heisenberg_all.js" />
+	<g:requires name="x_msgfi_codesearch.prism.js.jsdbx" />
+	
+	<!-- Get all searchable tables, and join them with comma -->
+	<g:evaluate var="jvar_table_list" object="false" copyToPhase2="true">
+		var oCodeSearch = new sn_codesearch.CodeSearch();
+		oCodeSearch.setSearchGroup('x_msgfi_codesearch.MS CodeSearch');
+		var sTables = oCodeSearch.getAllSearchableTables().join(',');
+		sTables;
+	</g:evaluate>
+	
+	<link 
+    href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous"></link>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.12.2/themes/prism-coy.css" rel="stylesheet" crossorigin="anonymous"></link>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.12.2/plugins/line-highlight/prism-line-highlight.min.css" rel="stylesheet"></link>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.12.2/plugins/line-numbers/prism-line-numbers.css" rel="stylesheet"></link>
+	
+	<style>
+		.progress {
+			margin-top: 70px;
+		}
+		
+		#sn_codesearch_results {
+			padding: 70px 40px;
+			border-top: 1px solid #e8e8e8;
+		}
+		#sn_codesearch_term {
+			width: 400px;
+		}
+		#btn-top {
+			width: 50px;
+			height: 50px;
+			padding: 12px 10px;
+			font-size: 25px;
+			line-height: 1.33;
+			border-radius: 25px;
+			margin-right: 10px;
+			margin-top: 5px;
+		}
+		.brand {
+			margin-top: -5px;
+			margin-left: 20px;
+		}
+		div.form-group {
+			margin-top: 5px;
+		}
+		.file-badge-grp {
+			margin-top: -27px;
+		}
+		.panel-heading-inner {
+			padding: 8px 15px;
+		}
+		.panel-title-inner {
+			color: white;
+		}
+		.list-group-item {
+			padding-top: 10px;
+			padding-bottom: 5px;
+		}
+	</style>
+	
+	 <nav class="nav navbar-nav navbar navbar-default navbar-fixed-top">
+	  <div class="container-fluid center">
+		  <div class="navbar-header">
+			  <a class="navbar-brand" href="#">
+				  <h1 class="brand">CodeSearch</h1>
+			  </a>
+		</div>
+		<g:ui_form>
+			<div class="form-group">
+				<div class="col-xs-4">
+					<input id="sn_codesearch_term" type="text" class="form-control" placeholder="Search Term" />
+				</div>
+			</div>
+			<div class="form-group"><div class="col-xs-2"> </div></div>
+			<div class="form-group">
+				<div class="checkbox">
+					<label class="checkbox-label">
+						<input id="sn_codesearch_search_all_scopes" checked="checked" class="checkbox" type="checkbox" name="sn_codesearch_search_all_scopes" />
+						$[SP]$[SP]Search All Applications
+					</label>
+				</div>
+			</div>
+			<div class="form-group"><div class="col-xs-2"> </div></div>
+			<div class="form-group">
+				<div class="col-xs-2">
+					<button type="submit" class="btn btn-primary" onclick="return sn_codesearch_getResults()"><span class="glyphicon glyphicon-search"></span>$[SP]$[SP]Search</button>
+				</div>
+			</div>
+		</g:ui_form>
+		<div class="nav navbar-nav navbar-right">
+			<div class="col-xs-2">
+				<a href="#" class="btn btn-warning btn-lg" role="button" id="btn-top">
+					<span class="glyphicon glyphicon-menu-up" aria-hidden="true" style="color:white;"></span>
+				</a>
+			</div>
+		</div>
+	  </div>
+	</nav> 
+	<div class="progress" style="display:none;">
+	  <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%">
+		0%
+	  </div>
+	</div>
+	
+    <div id="sn_codesearch_results">
+    </div>
+	
+	<div id="template" style="display:none">
+		<div id="header">
+			<div class='panel panel-default'>
+				<div class='panel-heading' onclick='toggleIcon(this);Prism.highlightAllUnder(this.nextSibling, false);' role='tab' id='label_§§recordType§§'>
+					<a data-toggle='collapse' href='#result_§§recordType§§' aria-expanded='false' aria-controls='result_§§recordType§§'>
+						<h4 class='panel-title'>
+							<span class='glyphicon glyphicon-plus'></span>$[SP]§§tableLabel§§ (in §§duration§§ seconds)<span class='badge pull-right'>§§hits§§</span>
+						</h4>
+					</a>				
+				</div>
+				§§body§§
+			</div>
+		</div>
+		<div id="body">
+			<div id='result_§§recordType§§' class='panel-collapse collapse' role='tabpanel' aria-labelledby='label_§§recordType§§'>
+				<div class='panel-body'>
+					<div id='toggle_§§recordType§§'>
+						§§result§§
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="result">
+			<div class='panel panel-primary'>
+				<div class='panel-heading panel-heading-inner' onclick='toggleIcon(this)' role='tab' id='record_label_§§trimmedName§§'>
+					<a data-toggle='collapse' href='#record_§§trimmedName§§' aria-expanded='false' aria-controls='record_§§trimmedName§§'>
+						<h5 class='panel-title panel-title-inner'>
+							<span class='glyphicon glyphicon-minus'></span>$[SP]<b>§§name§§</b>
+						</h5>
+					</a>
+					<div class='btn-group pull-right file-badge-grp'>
+						<a class='btn btn-success' href='§§className§§.do?sys_id=§§sysId§§' target='_blank' title='test'>
+							<span class='glyphicon glyphicon-file'></span>File
+						</a>
+						<a class='btn btn-success' href='#'>
+							<span class='badge'>§§matches§§</span>
+						</a>
+					</div>
+				</div>
+				<div id='record_§§trimmedName§§' class='panel-collapse collapse in' role='tabpanel' aria-labelledby='record_label_§§trimmedName§§'>
+					<ul class='list-group'>
+						§§text§§
+					</ul>
+				</div>
+			</div>
+		</div>
+		<div id="code">
+			<li class='list-group-item'>
+				<p>§§fieldLabel§§<span class='label label-default pull-right'>Last modified:$[SP]§§date§§</span></p>
+				§§codePart§§
+			</li>
+		</div>
+		<div id="codePart">
+			<pre class='lang-javascript line-numbers' data-start='§§line§§'>
+				<code class='lang-javascript'>
+					§§code§§
+				</code>
+			</pre>
+		</div>
+	</div>
+</j:jelly>]]></html>
+        <name>MS_CodeSearch</name>
+        <processing_script/>
+        <sys_class_name>sys_ui_page</sys_class_name>
+        <sys_created_by>sebastian.reinmann</sys_created_by>
+        <sys_created_on>2018-03-23 07:52:47</sys_created_on>
+        <sys_id>145dfa8d0f89db80ffb93f5ce1050e05</sys_id>
+        <sys_mod_count>40</sys_mod_count>
+        <sys_name>MS_CodeSearch</sys_name>
+        <sys_package display_value="MS CodeSearch" source="x_msgfi_codesearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="MS CodeSearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_scope>
+        <sys_update_name>sys_ui_page_145dfa8d0f89db80ffb93f5ce1050e05</sys_update_name>
+        <sys_updated_by>sebastian.reinmann</sys_updated_by>
+        <sys_updated_on>2018-10-22 14:06:41</sys_updated_on>
+    </sys_ui_page>
+</record_update>
