@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_scope_privilege">
+    <sys_scope_privilege action="INSERT_OR_UPDATE">
+        <operation>create</operation>
+        <source_scope display_value="MS CodeSearch">49b7ebcc0fc95b80ffb93f5ce1050e81</source_scope>
+        <status>allowed</status>
+        <sys_class_name>sys_scope_privilege</sys_class_name>
+        <sys_created_by>sebastian.reinmann</sys_created_by>
+        <sys_created_on>2018-04-17 06:37:39</sys_created_on>
+        <sys_id>d5cc9bcd0fa9d700c130d63be1050efa</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>sn_codesearch_table</sys_name>
+        <sys_package display_value="MS CodeSearch" source="x_msgfi_codesearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="MS CodeSearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_scope>
+        <sys_update_name>sys_scope_privilege_d5cc9bcd0fa9d700c130d63be1050efa</sys_update_name>
+        <sys_updated_by>sebastian.reinmann</sys_updated_by>
+        <sys_updated_on>2018-04-17 06:37:39</sys_updated_on>
+        <target_name>sn_codesearch_table</target_name>
+        <target_scope display_value="Code Search">f9752f20d7120200b6bddb0c8252032e</target_scope>
+        <target_type>sys_db_object</target_type>
+    </sys_scope_privilege>
+</record_update>

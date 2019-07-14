@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sn_codesearch_table">
+    <sn_codesearch_table action="INSERT_OR_UPDATE">
+        <additional_filter/>
+        <search_fields>calculation,dynamic_creation_script,reference_qual</search_fields>
+        <search_group display_value="x_msgfi_codesearch.MS CodeSearch">5bdc4d39db1da38027c44650399619c2</search_group>
+        <sys_class_name>sn_codesearch_table</sys_class_name>
+        <sys_created_by>sebastian.reinmann</sys_created_by>
+        <sys_created_on>2018-10-22 14:07:44</sys_created_on>
+        <sys_id>5fae85b9db1da38027c4465039961979</sys_id>
+        <sys_mod_count>2</sys_mod_count>
+        <sys_name>sys_dictionary</sys_name>
+        <sys_package display_value="MS CodeSearch" source="x_msgfi_codesearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="MS CodeSearch">49b7ebcc0fc95b80ffb93f5ce1050e81</sys_scope>
+        <sys_update_name>sn_codesearch_table_5fae85b9db1da38027c4465039961979</sys_update_name>
+        <sys_updated_by>sebastian.reinmann</sys_updated_by>
+        <sys_updated_on>2018-10-22 14:07:44</sys_updated_on>
+        <table>sys_dictionary</table>
+    </sn_codesearch_table>
+</record_update>
